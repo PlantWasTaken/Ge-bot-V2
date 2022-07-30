@@ -30,9 +30,12 @@ def eval(data_l, f_i, p_change, data_5m): #evaulates all items in list, manages 
     #print(p_change)
     if(p_change >= -9): # price ranges from 0 to -9%
         if(p_change <= 0): # price ranges from 0 to -9%
-            if(data_l['data'][f_i]['low'] <= 5000): #price is less than 5000
-                if(data_5m['data'][f_i]['lowPriceVolume'] >= 1000): #volume is more than 1000
-                    bought_items.append([[f_i], data_l['data'][f_i]['low'], p_change])
+            if(data_l['data'][f_i]['low'] >= 100):
+                if(data_l['data'][f_i]['low'] <= 5000): #price is less than 5000
+                    if(data_5m['data'][f_i]['lowPriceVolume'] >= 1000): #volume is more than 1000
+                        bought_items.append([f_i, data_l['data'][f_i]['low'], p_change])
+                    else:
+                        pass
                 else:
                     pass
             else:
@@ -42,15 +45,20 @@ def eval(data_l, f_i, p_change, data_5m): #evaulates all items in list, manages 
     else:
         pass
 
-def sell_items(current_prices): #error seling processes twice
+def sell_items(bought_items, data_l): 
     log = open("log.txt", "a+") #opens log file
+    current_prices = []
+
+    for i in range(len(bought_items)):
+        current_prices.append(data_l['data'][str(bought_items[i][0])]['high'])
+    
 
     with open("bank.json", "r") as jsonFile:
         json_data_sell = json.load(jsonFile)                
 
     with open("bank.json", "w") as jsonFile: 
         for i in range(len(current_prices)):
-            json_data_sell['items']['slot' + str(i+1)]['Current price'] = current_prices[i][1]
+            json_data_sell['items']['slot' + str(i+1)]['Current price'] = current_prices[i]
 
         #json_data_sell['items']['slot' + str(1)]['Current price'] = 1000 #test
 
@@ -61,7 +69,7 @@ def sell_items(current_prices): #error seling processes twice
 
     with open("bank.json", "w") as jsonFile:   #compares prices and decides to sell or hold
         for i in range(3):
-            if(json_data_sell['items']['slot' + str(i+1)]['Price'] < ((json_data_sell['items']['slot' + str(i+1)]['Current price'])-(json_data_sell['items']['slot' + str(i+1)]['Current price']*0.015))):
+            if(json_data_sell['items']['slot' + str(i+1)]['Price'] < ((json_data_sell['items']['slot' + str(i+1)]['Current price'])-(json_data_sell['items']['slot' + str(i+1)]['Current price']*0.02))):
                 #print(json_data_sell['items']['slot' + str(i+1)]['Amount'], "AMOUNT")
                 if(json_data_sell['items']['slot' + str(i+1)]['Amount'] > 0):
 
@@ -88,7 +96,7 @@ def sell_items(current_prices): #error seling processes twice
 
 bought_items = [] #list of all bought items n=[[[id0],[price0],[change0], [[id1],[price1],[change1]]]
 
-def buy_items(bought_items): #writes to json file
+def buy_items(bought_items, data_l): #writes to json file
     #global bought_items #= ["2"][340][-3.24][cannon ball] | [id][price][change][name]
     log = open("log.txt", "a+") #openslo g file
 
@@ -106,7 +114,6 @@ def buy_items(bought_items): #writes to json file
                 pass
 
     del bought_items[0:len(bought_items)-3] #list filtering with respect to amount of avaiable slots
-    current_prices = bought_items
 
     with open("bank.json", "w") as jsonFile: #appends to jsonfile, buying items, current price, change
         j = 0
@@ -134,8 +141,9 @@ def buy_items(bought_items): #writes to json file
         log.close()
         json.dump(json_data_buy, jsonFile, indent=4)
     
+    sell_items(bought_items, data_l)
     bought_items = []
-    sell_items(current_prices)
+    
     
 
 def findItemPrice(): #finds all item prices from index.txt
@@ -145,44 +153,45 @@ def findItemPrice(): #finds all item prices from index.txt
     r1 = requests.get(url1, headers=headers)
     r2 = requests.get(url2, headers=headers)
 
+    data_5m = r2.json()
+    data_l = r1.json()
+
     for i in index:
-            data_5m = r2.json()
-            data_l = r1.json()
 
-            f_i = ''
+        f_i = ''
 
-            try:
-                if(i[-1] == '\n'):
+        try:
+            if(i[-1] == '\n'):
                 
-                    item_price_5m = data_5m['data'][str(i[:-1])]['avgLowPrice']
-                    item_price_l = data_l['data'][str(i[:-1])]['low']
-                    f_i = str(i[:-1])
-                else:
-                    item_price_5m = data_5m['data'][str(i)]['avgLowPrice']
-                    item_price_l = data_l['data'][str(i)]['low']
-                    f_i = str(i)
+                item_price_5m = data_5m['data'][str(i[:-1])]['avgLowPrice']
+                item_price_l = data_l['data'][str(i[:-1])]['low']
+                f_i = str(i[:-1])
+            else:
+                item_price_5m = data_5m['data'][str(i)]['avgLowPrice']
+                item_price_l = data_l['data'][str(i)]['low']
+                f_i = str(i)
 
-                if(item_price_5m == None):
+            if(item_price_5m == None):
+                p_change = 0
+
+            else:
+                try:
+                    p_change = (item_price_l-item_price_5m)/item_price_l*100
+                except ZeroDivisionError:
                     p_change = 0
 
-                else:
-                    try:
-                        p_change = (item_price_l-item_price_5m)/item_price_l*100
-                    except ZeroDivisionError:
-                        p_change = 0
-
                 eval(data_l, f_i, p_change, data_5m)
-            except KeyError:
-                pass
+        except KeyError:
+            pass
 
+    buy_items(bought_items, data_l)
     #print(bought_items)
     #index.close()
 
-rec = 1
+rec = 2
 for i in range(rec):
-    findItemPrice()
-    buy_items(bought_items)
-    print("Updating prices... " + str(((i+1)/rec)*100) + "%" + "\nSafe to close")
+    findItemPrice()   
+    print("Updating prices... " + str(int(((i+1)/rec)*100)) + "%" + "\nSafe to close")
     t.sleep(1)
     os.system('clear')
 
