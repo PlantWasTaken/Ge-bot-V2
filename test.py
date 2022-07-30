@@ -21,10 +21,13 @@ headers = {
 }
 
 temp = ''
+#p_change = 0 #current price omcpared to yesterday price ot detrmine
 
 index = open("index.txt", "r")
 
+#list of all bought items n=[[[id0],[price0],[change0], [[id1],[price1],[change1]]]
 def eval(data_l, f_i, p_change, data_5m): #evaulates all items in list, manages purchaes etc...
+    #print(p_change)
     if(p_change >= -9): # price ranges from 0 to -9%
         if(p_change <= 0): # price ranges from 0 to -9%
             if(data_l['data'][f_i]['low'] <= 5000): #price is less than 5000
@@ -49,6 +52,8 @@ def sell_items(current_prices): #error seling processes twice
         for i in range(len(current_prices)):
             json_data_sell['items']['slot' + str(i+1)]['Current price'] = current_prices[i][1]
 
+        #json_data_sell['items']['slot' + str(1)]['Current price'] = 1000 #test
+
         json.dump(json_data_sell, jsonFile, indent=4)
 
     with open("bank.json", "r") as jsonFile: #opens new instance of json file after appending prices
@@ -69,8 +74,10 @@ def sell_items(current_prices): #error seling processes twice
                     
                 
                 else:
+                    #print("NO0", i)
                     pass
             else:
+                #print("NO", i)
                 pass
 
         json_data_sell['items']['net'] = (json_data_sell['items']['gp']) + (json_data_sell['items']['portfolio']) #sets net value
@@ -81,8 +88,8 @@ def sell_items(current_prices): #error seling processes twice
 
 bought_items = [] #list of all bought items n=[[[id0],[price0],[change0], [[id1],[price1],[change1]]]
 
-def buy_items(): #writes to json file
-    global bought_items #= ["2"][340][-3.24][cannon ball] | [id][price][change][name]
+def buy_items(bought_items): #writes to json file
+    #global bought_items #= ["2"][340][-3.24][cannon ball] | [id][price][change][name]
     log = open("log.txt", "a+") #openslo g file
 
     items_to_buy = [] #index of json file with 0 amount
@@ -111,6 +118,8 @@ def buy_items(): #writes to json file
             json_data_buy['items']['slot' + str(i+1)]['Amount'] = int((json_data_buy['items']['gp'])/(len(items_to_buy))/bought_items[j][1]) #buys items
             j = j + 1
 
+
+        
         if(len(items_to_buy) != 0): #moves money from a to b simulating purcahse
             for i in range(len(items_to_buy)):
                 json_data_buy['items']['portfolio'] = (json_data_buy['items']['portfolio'])+(json_data_buy['items']['slot' + str(i+1)]['Price'])*(json_data_buy['items']['slot' + str(i+1)]['Amount'])
@@ -124,7 +133,8 @@ def buy_items(): #writes to json file
 
         log.close()
         json.dump(json_data_buy, jsonFile, indent=4)
-
+    
+    bought_items = []
     sell_items(current_prices)
     
 
@@ -165,12 +175,15 @@ def findItemPrice(): #finds all item prices from index.txt
             except KeyError:
                 pass
 
-rec = 10
+    #print(bought_items)
+    #index.close()
+
+rec = 1
 for i in range(rec):
     findItemPrice()
-    buy_items()
+    buy_items(bought_items)
     print("Updating prices... " + str(((i+1)/rec)*100) + "%" + "\nSafe to close")
-    t.sleep(300)
-    os.system('cls')
+    t.sleep(1)
+    os.system('clear')
 
 print("done")
