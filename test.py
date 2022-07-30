@@ -29,7 +29,7 @@ index = open("index.txt", "r")
 def eval(data_l, f_i, p_change, data_5m): #evaulates all items in list, manages purchaes etc...
     #print(p_change)
     if(p_change >= -7): # price ranges from 0 to -9%
-        if(p_change <= 0): # price ranges from 0 to -9%
+        if(p_change <= -1.5): # price ranges from 0 to -9%
             if(data_l['data'][f_i]['low'] >= 100):
                 if(data_l['data'][f_i]['low'] <= 3000): #price is less than 5000
                     if(data_5m['data'][f_i]['lowPriceVolume'] >= 1000): #volume is more than 1000
@@ -50,7 +50,8 @@ def sell_items(bought_items, data_l):
     current_prices = []
 
     for i in range(len(bought_items)):
-        current_prices.append(data_l['data'][str(bought_items[i][0])]['high'])
+        h_tax = (data_l['data'][str(bought_items[i][0])]['high']) - int((data_l['data'][str(bought_items[i][0])]['high'])*0.02) #Simualtes undercotting
+        current_prices.append(h_tax)
     
 
     with open("bank.json", "r") as jsonFile:
@@ -69,7 +70,7 @@ def sell_items(bought_items, data_l):
 
     with open("bank.json", "w") as jsonFile:   #compares prices and decides to sell or hold
         for i in range(3):
-            if(json_data_sell['items']['slot' + str(i+1)]['Price'] < ((json_data_sell['items']['slot' + str(i+1)]['Current price'])-(int(json_data_sell['items']['slot' + str(i+1)]['Current price']*(0.03+0.01))))): #(profit + tax), currently seeking 3% profit
+            if(json_data_sell['items']['slot' + str(i+1)]['Price'] < ((json_data_sell['items']['slot' + str(i+1)]['Current price'])-(int(json_data_sell['items']['slot' + str(i+1)]['Current price']*(0.05+0.01))))): #(profit + tax), currently seeking 3% profit
                 #print(json_data_sell['items']['slot' + str(i+1)]['Amount'], "AMOUNT")
                 if(json_data_sell['items']['slot' + str(i+1)]['Amount'] > 0):
 
@@ -188,9 +189,13 @@ def findItemPrice(): #finds all item prices from index.txt
     #print(bought_items)
     #index.close()
 
-rec = 2
+rec = 3 #runs for x*5m
 for i in range(rec):
     findItemPrice()   
     print("Updating prices... " + str(int(((i+1)/rec)*100)) + "%" + "\nSafe to close")
-    t.sleep(1)
-    os.system('clear')
+    if(i + 1 != rec):
+        t.sleep(300)
+    else:
+        pass
+    os.system('cls') #clear for linux/unix
+print("\nDone\n")
