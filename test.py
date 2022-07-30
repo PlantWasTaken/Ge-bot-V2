@@ -1,7 +1,5 @@
-from email import header
 import requests
 import json
-import linecache
 import time as t
 import sys, os
 import datetime
@@ -12,7 +10,6 @@ sys.setrecursionlimit(10000)
 
 index = open("index.txt", "r")
 bankmanagment = open("bank.json", "r")
-log = open("log.txt", "a+")
 
 data = ''
 line_count = 0
@@ -24,13 +21,10 @@ headers = {
 }
 
 temp = ''
-#p_change = 0 #current price omcpared to yesterday price ot detrmine
 
 index = open("index.txt", "r")
 
-#list of all bought items n=[[[id0],[price0],[change0], [[id1],[price1],[change1]]]
 def eval(data_l, f_i, p_change, data_5m): #evaulates all items in list, manages purchaes etc...
-    #print(p_change)
     if(p_change >= -9): # price ranges from 0 to -9%
         if(p_change <= 0): # price ranges from 0 to -9%
             if(data_l['data'][f_i]['low'] <= 5000): #price is less than 5000
@@ -45,15 +39,15 @@ def eval(data_l, f_i, p_change, data_5m): #evaulates all items in list, manages 
     else:
         pass
 
-def sell_items(current_prices):
+def sell_items(current_prices): #error seling processes twice
+    log = open("log.txt", "a+") #opens log file
+
     with open("bank.json", "r") as jsonFile:
         json_data_sell = json.load(jsonFile)                
 
     with open("bank.json", "w") as jsonFile: 
         for i in range(len(current_prices)):
             json_data_sell['items']['slot' + str(i+1)]['Current price'] = current_prices[i][1]
-
-        #json_data_sell['items']['slot' + str(1)]['Current price'] = 9999 #test
 
         json.dump(json_data_sell, jsonFile, indent=4)
 
@@ -65,25 +59,23 @@ def sell_items(current_prices):
             if(json_data_sell['items']['slot' + str(i+1)]['Price'] < ((json_data_sell['items']['slot' + str(i+1)]['Current price'])-(json_data_sell['items']['slot' + str(i+1)]['Current price']*0.015))):
                 #print(json_data_sell['items']['slot' + str(i+1)]['Amount'], "AMOUNT")
                 if(json_data_sell['items']['slot' + str(i+1)]['Amount'] > 0):
-            
-                    #print((json_data_sell['items']['gp'] + (json_data_sell['items']['slot' + str(i+1)]['Current price'])-int(json_data_sell['items']['slot' + str(i+1)]['Current price']*0.01))*json_data_sell['items']['slot' + str(i+1)]['Amount'])
 
-                    json_data_sell['items']['gp'] = ((json_data_sell['items']['gp'] + (json_data_sell['items']['slot' + str(i+1)]['Current price'])-int(json_data_sell['items']['slot' + str(i+1)]['Current price']*0.01))*json_data_sell['items']['slot' + str(i+1)]['Amount'])
+                    json_data_sell['items']['gp'] = (json_data_sell['items']['gp'] + (json_data_sell['items']['slot' + str(i+1)]['Current price']-(int(json_data_sell['items']['slot' + str(i+1)]['Current price']*0.01)))*json_data_sell['items']['slot' + str(i+1)]['Amount'])
                     json_data_sell['items']['slot' + str(i+1)]['Amount'] = 0 #changes amount after item has been sold
                     json_data_sell['items']['portfolio'] = (json_data_sell['items']['portfolio'])+(json_data_sell['items']['slot' + str(i+1)]['Price'])*(json_data_sell['items']['slot' + str(i+1)]['Amount']) #sets portfolio
 
                     now = datetime.datetime.now() #writing to log file
-                    log.write("Sold at : " + str(now.strftime("%Y-%m-%d %H:%M:%S") + "\n"))
+                    log.write("Sold " + str(json_data_sell['items']['slot' + str(i+1)]["Id"]) + " " + str(json_data_sell['items']['slot' + str(i+1)]["Current price"]) + " at : " + str(now.strftime("%Y-%m-%d %H:%M:%S") + "\n"))
+                    
                 
                 else:
-                    #print("NO0", i)
                     pass
             else:
-                #print("NO", i)
                 pass
 
         json_data_sell['items']['net'] = (json_data_sell['items']['gp']) + (json_data_sell['items']['portfolio']) #sets net value
-        #print(json_data_sell)
+
+        log.close() #closes log file
         json.dump(json_data_sell, jsonFile, indent=4)  
 
 
@@ -91,6 +83,7 @@ bought_items = [] #list of all bought items n=[[[id0],[price0],[change0], [[id1]
 
 def buy_items(): #writes to json file
     global bought_items #= ["2"][340][-3.24][cannon ball] | [id][price][change][name]
+    log = open("log.txt", "a+") #openslo g file
 
     items_to_buy = [] #index of json file with 0 amount
 
@@ -118,30 +111,24 @@ def buy_items(): #writes to json file
             json_data_buy['items']['slot' + str(i+1)]['Amount'] = int((json_data_buy['items']['gp'])/(len(items_to_buy))/bought_items[j][1]) #buys items
             j = j + 1
 
-
-        
         if(len(items_to_buy) != 0): #moves money from a to b simulating purcahse
             for i in range(len(items_to_buy)):
                 json_data_buy['items']['portfolio'] = (json_data_buy['items']['portfolio'])+(json_data_buy['items']['slot' + str(i+1)]['Price'])*(json_data_buy['items']['slot' + str(i+1)]['Amount'])
                 json_data_buy['items']['gp'] = (json_data_buy['items']['gp'])-((json_data_buy['items']['slot' + str(items_to_buy[i]+1)]['Price'])*(json_data_buy['items']['slot' + str(items_to_buy[i]+1)]['Amount']))
-
                 now = datetime.datetime.now() #writing to log file
-                log.write("Bought at : " + str(now.strftime("%Y-%m-%d %H:%M:%S") + "\n"))
-                    
-
-                
+                log.write("Bought id : " + str(bought_items[items_to_buy[i]]) + " at : " + str(now.strftime("%Y-%m-%d %H:%M:%S") + "\n"))
+                                    
             json_data_buy['items']['net'] = (json_data_buy['items']['gp']) + (json_data_buy['items']['portfolio'])            
         else:
             pass
 
+        log.close()
         json.dump(json_data_buy, jsonFile, indent=4)
-    
-    bought_items = []
+
     sell_items(current_prices)
     
 
 def findItemPrice(): #finds all item prices from index.txt
-    print("Working...")
     url1 = 'https://prices.runescape.wiki/api/v1/osrs/latest'
     url2 = 'https://prices.runescape.wiki/api/v1/osrs/5m'
     
@@ -178,12 +165,12 @@ def findItemPrice(): #finds all item prices from index.txt
             except KeyError:
                 pass
 
-    #print(bought_items)
-    index.close()
-
-for i in range(20):
+rec = 10
+for i in range(rec):
     findItemPrice()
     buy_items()
-    print("Waiting... \nSafe to close")
+    print("Updating prices... " + str(((i+1)/rec)*100) + "%" + "\nSafe to close")
     t.sleep(300)
-    os.system('clear')
+    os.system('cls')
+
+print("done")
